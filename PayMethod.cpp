@@ -3,12 +3,13 @@
 
 using namespace std;
 
-enum class PaymentMode {
+enum PaymentModeID {
     PayPal = 0,
     GooglePay = 1,
-    CreditCard = 2,
-    Unknown = 3
+    CreditCard = 2
 };
+
+using PaymentHandler = void(*)(double);
 
 void processPayPal(double amount) {
     cout << "Processing PayPal payment of $" << amount << endl;
@@ -26,29 +27,32 @@ void processUnknown(double amount) {
     cout << "Invalid payment mode selected!" << endl;
 }
 
-void checkout(PaymentMode mode, double amount) {
-    // Pointing to the funtion
-    static const vector<void(*)(double)> handlers = {
-        processPayPal,
-        processGooglePay,
-        processCreditCard
-    };
+// Global vector with default handler initially
+vector<PaymentHandler> paymentHandlers = { processUnknown };
 
-    int index = static_cast<int>(mode);
-    if (index >= 0 && index < (int)handlers.size()) {
-        handlers[index](amount);
-    } else {
-        processUnknown(amount);
+// Register handler and auto-fill missing slots with default handler
+void registerHandler(PaymentModeID id, PaymentHandler handler) {
+    if (id >= paymentHandlers.size()) {
+        paymentHandlers.resize(id + 1, processUnknown);
     }
+    paymentHandlers[id] = handler;
+}
+
+void checkout(int modeId, double amount) {
+    paymentHandlers[modeId](amount);
 }
 
 int main() {
+    registerHandler(PayPal, processPayPal);
+    registerHandler(GooglePay, processGooglePay);
+    registerHandler(CreditCard, processCreditCard);
+
     double amount = 150.75;
 
-    checkout(PaymentMode::PayPal, amount);
-    checkout(PaymentMode::GooglePay, amount);
-    checkout(PaymentMode::CreditCard, amount);
-    checkout(PaymentMode::Unknown, amount);
+    checkout(PayPal, amount);
+    checkout(GooglePay, amount);
+    checkout(CreditCard, amount);
+    checkout(99, amount);  // safely calls processUnknown
 
     return 0;
 }
